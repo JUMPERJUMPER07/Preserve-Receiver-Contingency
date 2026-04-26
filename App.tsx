@@ -8,7 +8,7 @@ import { SettingsModal } from "./components/SettingsModal";
 import { Login } from "./components/Login";
 import { IntroSplash } from "./components/IntroSplash";
 import { ToastContainer, ToastMessage } from "./components/Toast";
-import { ConnectionStatus, DicomStudy, WorklistItem, AppSettings } from "./types";
+import { ConnectionStatus, DicomStudy, WorklistItem, AppSettings, NetworkState } from "./types";
 import { MOCK_RECEIVED, MOCK_WORKLIST } from "./constants";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useSound } from "./hooks/useSound";
@@ -41,6 +41,12 @@ const App: React.FC = () => {
   // Sound (enabled by default)
   const [soundEnabled] = useLocalStorage<boolean>("prc_sound", true);
   const { play: playSound } = useSound(soundEnabled);
+
+  // Network Monitor (Phase 2)
+  const [networkStatus, setNetworkStatus] = useState<{ pacs: NetworkState; ris: NetworkState }>({
+    pacs: 'online',
+    ris: 'online'
+  });
 
   // Mobile tab
   const [mobileTab, setMobileTab] = useState<"pacs" | "ris">("pacs");
@@ -182,9 +188,37 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [connectionStatus, isAuthenticated]);
 
-  // Demo RIS polling
+  // Network Monitor Simulation (Phase 2)
   useEffect(() => {
-    if (!isAuthenticated || !appSettings.ris.enabled) return;
+    if (!isAuthenticated) return;
+    
+    const interval = setInterval(() => {
+      // 5% chance of network drop
+      if (Math.random() > 0.95 && networkStatus.pacs === 'online') {
+        setNetworkStatus({ pacs: 'offline', ris: 'offline' });
+        addToast("ALERTA: Conexão com servidores externos perdida (MODO CONTINGÊNCIA)", "error");
+        playSound("error");
+      } 
+      // If offline, 30% chance of recovery (Simulating Phase 2)
+      else if (networkStatus.pacs === 'offline' && Math.random() > 0.7) {
+        setNetworkStatus({ pacs: 'online', ris: 'online' });
+        addToast("REDE RESTABELECIDA: Detectando servidores disponíveis...", "success");
+        // Trigger Phase 2: Auto-refresh RIS when network returns
+        setTimeout(handleRisRefresh, 1000);
+      }
+      // 10% chance of latency/degraded
+      else if (networkStatus.pacs === 'online' && Math.random() > 0.9) {
+        setNetworkStatus(prev => ({ ...prev, pacs: 'degraded' }));
+        setTimeout(() => setNetworkStatus(prev => ({ ...prev, pacs: 'online' })), 3000);
+      }
+    }, 15000); // Check every 15s
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated, networkStatus.pacs, handleRisRefresh]);
+
+  // Demo RIS polling (only if network is online)
+  useEffect(() => {
+    if (!isAuthenticated || !appSettings.ris.enabled || networkStatus.ris !== 'online') return;
     const pollInterval = Math.max(5000, (appSettings.ris.pollingInterval || 30) * 1000);
     const interval = setInterval(() => {
       if (Math.random() > 0.6) {
@@ -194,7 +228,7 @@ const App: React.FC = () => {
       }
     }, pollInterval);
     return () => clearInterval(interval);
-  }, [isAuthenticated, appSettings.ris.enabled, appSettings.ris.pollingInterval, generateMockRisItem]);
+  }, [isAuthenticated, appSettings.ris.enabled, appSettings.ris.pollingInterval, generateMockRisItem, networkStatus.ris]);
 
   const namesMatch       = selectedStudy && selectedWorklist ? selectedStudy.patientName.toLowerCase().replace(/[^a-z0-9]/g, "") === selectedWorklist.patientName.toLowerCase().replace(/[^a-z0-9]/g, "") : false;
   const birthDatesMatch  = selectedStudy && selectedWorklist ? selectedStudy.birthDate === selectedWorklist.birthDate : false;
@@ -262,6 +296,7 @@ const App: React.FC = () => {
           onOpenSettings={() => setShowSettings(true)}
           onLogout={handleLogout}
           onRefresh={handleRisRefresh}
+          networkStatus={networkStatus}
         />
 
         {/* Desktop: split | Mobile: single panel driven by mobileTab */}

@@ -50,3 +50,5 @@ export interface AppSettings {
     autoHideLinked: boolean;
   };
 }
+
+export type NetworkState = 'online' | 'offline' | 'degraded';
