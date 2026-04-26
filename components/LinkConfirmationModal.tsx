@@ -12,6 +12,8 @@ import {
   Database,
   Wifi,
 } from "lucide-react";
+import { useSound } from "../hooks/useSound";
+import { useLocalStorage } from "../hooks/useLocalStorage";
 
 interface LinkConfirmationModalProps {
   study: DicomStudy;
@@ -33,6 +35,10 @@ export const LinkConfirmationModal: React.FC<LinkConfirmationModalProps> = ({
   const [statusMessage, setStatusMessage] = useState(
     "Iniciando transferência...",
   );
+
+  // Sound
+  const [soundEnabled] = useLocalStorage<boolean>("prc_sound", true);
+  const { play: playSound } = useSound(soundEnabled);
 
   // Normalization for comparison
   const normalize = (str: string) =>
@@ -80,12 +86,13 @@ export const LinkConfirmationModal: React.FC<LinkConfirmationModalProps> = ({
     }
   }, [status]);
 
-  // Handle completion
+  // Play chime when animation completes
   useEffect(() => {
     if (status === "completed") {
+      playSound("link");
       const timer = setTimeout(() => {
         onConfirm();
-      }, 800); // Wait a bit at 100% before closing
+      }, 900);
       return () => clearTimeout(timer);
     }
   }, [status, onConfirm]);

@@ -16,47 +16,79 @@ export function useSound(enabled: boolean = true) {
     if (!enabled) return;
     try {
       const ctx = getCtx();
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-
       const now = ctx.currentTime;
 
       if (type === 'receive') {
         // Two ascending notes: soft beep
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, now);
-        oscillator.frequency.setValueAtTime(1100, now + 0.08);
-        gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(0.08, now + 0.01);
-        gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
-        oscillator.start(now);
-        oscillator.stop(now + 0.2);
-      } else if (type === 'link') {
-        // Short success chime
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(660, now);
-        oscillator.frequency.setValueAtTime(880, now + 0.08);
-        oscillator.frequency.setValueAtTime(1100, now + 0.16);
-        gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(0.1, now + 0.01);
-        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
-        oscillator.start(now);
-        oscillator.stop(now + 0.3);
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(1100, now + 0.08);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.08, now + 0.01);
+        gain.gain.linearRampToValueAtTime(0, now + 0.22);
+        osc.start(now);
+        osc.stop(now + 0.25);
+
       } else if (type === 'error') {
-        // Low warning tone
-        oscillator.type = 'square';
-        oscillator.frequency.setValueAtTime(200, now);
-        gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(0.05, now + 0.01);
-        gainNode.gain.linearRampToValueAtTime(0, now + 0.15);
-        oscillator.start(now);
-        oscillator.stop(now + 0.15);
+        // Low warning buzz
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(220, now);
+        osc.frequency.setValueAtTime(180, now + 0.08);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.05, now + 0.01);
+        gain.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.start(now);
+        osc.stop(now + 0.22);
+
+      } else if (type === 'link') {
+        // ── Rich 3-note ascending success chime: C5 → E5 → G5 ──
+        // Each note = fundamental sine + shimmer octave above
+        const notes = [
+          { freq: 523.25, delay: 0 },
+          { freq: 659.25, delay: 0.13 },
+          { freq: 783.99, delay: 0.26 },
+        ];
+
+        notes.forEach(({ freq, delay }) => {
+          const t = now + delay;
+
+          // Fundamental
+          const osc1  = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          osc1.type = 'sine';
+          osc1.frequency.setValueAtTime(freq, t);
+          gain1.gain.setValueAtTime(0, t);
+          gain1.gain.linearRampToValueAtTime(0.14, t + 0.015);
+          gain1.gain.exponentialRampToValueAtTime(0.001, t + 0.65);
+          osc1.connect(gain1);
+          gain1.connect(ctx.destination);
+          osc1.start(t);
+          osc1.stop(t + 0.7);
+
+          // Shimmer (octave up, softer)
+          const osc2  = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'sine';
+          osc2.frequency.setValueAtTime(freq * 2, t);
+          gain2.gain.setValueAtTime(0, t);
+          gain2.gain.linearRampToValueAtTime(0.045, t + 0.015);
+          gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(t);
+          osc2.stop(t + 0.5);
+        });
       }
     } catch {
-      // Audio not available
+      // Audio API not available
     }
   }, [enabled, getCtx]);
 

@@ -212,7 +212,6 @@ const App: React.FC = () => {
     ));
     if (appSettings.workflow.autoHideLinked) setStudies(prev => prev.filter(s => s.id !== selectedStudy.id));
     addToast(`Vínculo confirmado: ${selectedStudy.patientName} → ${selectedWorklist.accessionNumber}`, "success");
-    playSound("link");
     setShowLinkConfirmation(false);
     setSelectedStudy(null);
     setSelectedWorklist(null);
