@@ -43,6 +43,13 @@ export const LinkConfirmationModal: React.FC<LinkConfirmationModalProps> = ({
   const dobMatch = study.birthDate === worklistItem.birthDate;
   const idMatch = study.patientId.trim() === worklistItem.patientId.trim();
 
+  // An absent PACS accession is expected in contingency — not a discrepancy.
+  const pacsAccessionEmpty =
+    !study.accessionNumber ||
+    study.accessionNumber.trim() === "" ||
+    study.accessionNumber.trim().toUpperCase() === "N/A" ||
+    study.accessionNumber.trim().toUpperCase() === "NA";
+
   const hasDiscrepancy = !namesMatch || !dobMatch || !idMatch;
 
   // Animation Logic
@@ -300,9 +307,16 @@ export const LinkConfirmationModal: React.FC<LinkConfirmationModalProps> = ({
                       <label className="text-[10px] uppercase text-slate-500 font-bold block mb-1">
                         Accession Number
                       </label>
-                      <div className="text-xs font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-1 rounded inline-block">
-                        {study.accessionNumber}
-                      </div>
+                      {pacsAccessionEmpty ? (
+                        <div className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30 px-2 py-1 rounded inline-flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                          SEM ACCESSION · CONTINGÊNCIA
+                        </div>
+                      ) : (
+                        <div className="text-xs font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-2 py-1 rounded inline-block">
+                          {study.accessionNumber}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="text-[10px] uppercase text-slate-500 font-bold block mb-1">
@@ -417,12 +431,20 @@ export const LinkConfirmationModal: React.FC<LinkConfirmationModalProps> = ({
               </div>
             </div>
 
-            <div className="mt-8 flex items-center justify-center text-xs text-slate-500">
-              <FileText size={12} className="mr-1" />A imagem será vinculada
-              permanentemente ao Accession Number{" "}
-              <span className="text-indigo-400 font-mono ml-1">
-                {worklistItem.accessionNumber}
-              </span>
+            <div className="mt-8 flex flex-col items-center justify-center gap-1.5 text-xs text-slate-500">
+              <div className="flex items-center gap-1">
+                <FileText size={12} />
+                A imagem será vinculada permanentemente ao Accession Number do RIS:{" "}
+                <span className="text-indigo-400 font-mono ml-1 font-bold">
+                  {worklistItem.accessionNumber}
+                </span>
+              </div>
+              {pacsAccessionEmpty && (
+                <div className="flex items-center gap-1.5 text-amber-400/70 text-[10px] font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400/70 shrink-0" />
+                  Exame sem accession no PACS — vínculo realizado via Accession RIS (modo contingência)
+                </div>
+              )}
             </div>
           </div>
 
