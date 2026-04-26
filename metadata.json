@@ -1,0 +1,6 @@
+{
+  "name": "Preserve Receiver Contingency",
+  "description": "A modern DICOM receiver dashboard and RIS worklist monitor with real-time WebSocket capabilities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
