@@ -243,19 +243,18 @@ export const LinkConfirmationModal: React.FC<LinkConfirmationModalProps> = ({
           {/* Content */}
           <div className="p-6 overflow-y-auto">
             {hasDiscrepancy && (
-              <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex gap-3 items-start">
+              <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex gap-3 items-start animate-in slide-in-from-top-2">
                 <AlertTriangle
                   className="text-red-500 shrink-0 mt-0.5"
                   size={20}
                 />
                 <div>
                   <h4 className="text-red-400 font-bold text-sm">
-                    Atenção: Discrepância de Dados Detectada
+                    BLOQUEIO DE SEGURANÇA: Dados Incompatíveis
                   </h4>
-                  <p className="text-red-300/80 text-xs mt-1">
-                    Os dados do paciente no PACS não correspondem exatamente aos
-                    dados do pedido no RIS. Verifique cuidadosamente antes de
-                    prosseguir.
+                  <p className="text-red-300/80 text-xs mt-1 leading-relaxed">
+                    Não é possível realizar o vínculo porque os dados do paciente (Nome, ID ou Data de Nasc.) no PACS não coincidem com o pedido no RIS. 
+                    <span className="block mt-1 font-bold">Por segurança, a operação foi bloqueada.</span>
                   </p>
                 </div>
               </div>
@@ -465,17 +464,27 @@ export const LinkConfirmationModal: React.FC<LinkConfirmationModalProps> = ({
             </button>
             <button
               onClick={handleConfirmClick}
+              disabled={hasDiscrepancy}
               className={`
-                px-6 py-2 text-sm font-bold text-white rounded-lg flex items-center gap-2 transition-all active:scale-[0.98] border border-white/10
+                px-6 py-2 text-sm font-bold text-white rounded-lg flex items-center gap-2 transition-all border border-white/10
                 ${
                   hasDiscrepancy
-                    ? "bg-gradient-to-br from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 shadow-[0_4px_16px_rgba(239,68,68,0.3)] hover:shadow-[0_8px_24px_rgba(239,68,68,0.4)]"
-                    : "bg-gradient-to-br from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-[0_4px_16px_rgba(6,182,212,0.3)] hover:shadow-[0_8px_24px_rgba(6,182,212,0.4)]"
+                    ? "bg-slate-800 text-slate-500 border-slate-700 cursor-not-allowed opacity-70"
+                    : "bg-gradient-to-br from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 shadow-[0_4px_16px_rgba(6,182,212,0.3)] active:scale-[0.98]"
                 }
               `}
             >
-              <CheckCircle2 size={16} />
-              {hasDiscrepancy ? "Confirmar Mesmo Assim" : "Confirmar Vínculo"}
+              {hasDiscrepancy ? (
+                <>
+                  <X size={16} className="text-red-500" />
+                  <span>Vínculo Bloqueado</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={16} />
+                  <span>Confirmar Vínculo</span>
+                </>
+              )}
             </button>
           </div>
         </div>
