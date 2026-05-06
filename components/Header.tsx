@@ -1,5 +1,7 @@
+import React from "react";
 import { NetworkState } from "../types";
-import { Radio, Settings, LogOut, RefreshCw, Activity, Globe, Wifi, WifiOff } from "lucide-react";
+import { Settings, LogOut, RefreshCw, Activity, Globe } from "lucide-react";
+import { Logo } from "./Logo";
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -33,6 +35,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-cyan-400 font-normal opacity-80">
               Receiver
             </span>
+          </h1>
         </div>
       </div>
 

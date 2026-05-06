@@ -90,6 +90,16 @@ const App: React.FC = () => {
     };
   }, []);
 
+  const handleRisRefresh = useCallback(() => {
+    if (!isAuthenticated || !appSettings.ris.enabled) { addToast("Integração RIS desativada.", "error"); return; }
+    addToast("Sincronizando com servidor RIS...", "info");
+    setTimeout(() => {
+      const newItem = generateMockRisItem();
+      setWorklist(prev => [newItem, ...prev]);
+      addToast("Sincronização concluída. 1 novo agendamento encontrado.", "success");
+    }, 1200);
+  }, [isAuthenticated, appSettings.ris.enabled, generateMockRisItem]);
+
   // WebSocket
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -255,16 +265,6 @@ const App: React.FC = () => {
     setAppSettings(newSettings);
     addToast("Configurações salvas com sucesso", "success");
   };
-
-  const handleRisRefresh = useCallback(() => {
-    if (!isAuthenticated || !appSettings.ris.enabled) { addToast("Integração RIS desativada.", "error"); return; }
-    addToast("Sincronizando com servidor RIS...", "info");
-    setTimeout(() => {
-      const newItem = generateMockRisItem();
-      setWorklist(prev => [newItem, ...prev]);
-      addToast("Sincronização concluída. 1 novo agendamento encontrado.", "success");
-    }, 1200);
-  }, [isAuthenticated, appSettings.ris.enabled, generateMockRisItem]);
 
   const handleLogin  = (user: string, drt: string) => { setCurrentUser(user); setCurrentDrt(drt); setIsAuthenticated(true); addToast("Login realizado com sucesso", "success"); };
   const handleLogout = () => { setIsAuthenticated(false); setCurrentUser(""); setCurrentDrt(""); setConnectionStatus(ConnectionStatus.DISCONNECTED); if (socketRef.current) socketRef.current.close(); };
