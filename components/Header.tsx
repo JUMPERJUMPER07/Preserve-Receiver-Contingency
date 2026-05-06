@@ -19,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   onRefresh,
   userDrt,
+  networkStatus,
 }) => {
   return (
     <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/40 border border-white/10 backdrop-blur-xl p-3 md:p-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden shrink-0 ring-1 ring-white/5">
