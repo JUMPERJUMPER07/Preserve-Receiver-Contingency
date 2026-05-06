@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Header } from "./components/Header";
-import { StudyList } from "./components/StudyList";
-import { RisWorklist } from "./components/RisWorklist";
 import { StudyDetails } from "./components/StudyDetails";
 import { LinkConfirmationModal } from "./components/LinkConfirmationModal";
 import { SettingsModal } from "./components/SettingsModal";
@@ -13,6 +11,7 @@ import { MOCK_RECEIVED, MOCK_WORKLIST } from "./constants";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useSound } from "./hooks/useSound";
 import { Activity, Link2, AlertTriangle, ArrowRight, X, Radio, Layers } from "lucide-react";
+import { MatchAlignedLayout } from "./components/MatchAlignedLayout";
 
 const generateId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -299,57 +298,25 @@ const App: React.FC = () => {
           networkStatus={networkStatus}
         />
 
-        {/* Desktop: split | Mobile: single panel driven by mobileTab */}
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-          {/* PACS Panel */}
-          <div className={`flex-col h-full bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/5
-            ${mobileTab === "pacs" ? "flex" : "hidden lg:flex"}`}>
-            <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
-              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
-                PACS Received
-              </h2>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Total</span>
-                <span className="text-xs bg-slate-950/50 text-cyan-400 px-2.5 py-0.5 rounded-full border border-white/10 font-mono">{studies.length}</span>
-              </div>
-            </div>
-            <div className={`flex-1 overflow-hidden relative transition-opacity ${draggedStudy ? "opacity-60 grayscale-[0.5]" : "opacity-100"}`}>
-              <StudyList
-                studies={studies}
-                onSelect={setSelectedStudy}
-                onDetails={setPreviewStudy}
-                selectedId={selectedStudy?.id}
-                onDragStart={setDraggedStudy}
-              />
-            </div>
-          </div>
-
-          {/* RIS Panel */}
-          <div className={`flex-col h-full bg-slate-900/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/5
-            ${mobileTab === "ris" ? "flex" : "hidden lg:flex"}`}>
-            <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
-              <h2 className="text-base font-bold text-slate-100 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
-                RIS Worklist
-              </h2>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Scheduled</span>
-                <span className="text-xs bg-slate-950/50 text-indigo-400 px-2.5 py-0.5 rounded-full border border-white/10 font-mono">{worklist.length}</span>
-              </div>
-            </div>
-            <div className={`flex-1 overflow-hidden relative transition-all ${draggedStudy ? "ring-2 ring-indigo-500/50 shadow-[inset_0_0_40px_rgba(99,102,241,0.1)]" : ""}`}>
-              <RisWorklist
-                worklist={worklist}
-                onSelect={setSelectedWorklist}
-                selectedId={selectedWorklist?.id}
-                draggedStudy={draggedStudy}
-                onDropStudy={handleDropStudy}
-              />
-            </div>
-          </div>
-        </div>
+        {/* Match-Aligned three-column layout */}
+        <MatchAlignedLayout
+          studies={studies}
+          worklist={worklist}
+          selectedStudy={selectedStudy}
+          selectedWorklist={selectedWorklist}
+          onSelectStudy={setSelectedStudy}
+          onSelectWorklist={setSelectedWorklist}
+          onSelectPair={(study, item) => {
+            setSelectedStudy(study);
+            setSelectedWorklist(item);
+            setShowLinkConfirmation(true);
+          }}
+          onDetails={setPreviewStudy}
+          draggedStudy={draggedStudy}
+          onDragStart={setDraggedStudy}
+          onDropStudy={handleDropStudy}
+          mobileTab={mobileTab}
+        />
       </div>
 
       {/* Mobile Tab Bar */}
