@@ -34,8 +34,8 @@ const App: React.FC = () => {
 
   // Persisted state
   const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("prc_settings", DEFAULT_SETTINGS);
-  const [studies, setStudies]         = useLocalStorage<DicomStudy[]>("prc_studies", MOCK_RECEIVED);
-  const [worklist, setWorklist]       = useLocalStorage<WorklistItem[]>("prc_worklist", MOCK_WORKLIST);
+  const [studies, setStudies]         = useLocalStorage<DicomStudy[]>("prc_studies_v2", MOCK_RECEIVED);
+  const [worklist, setWorklist]       = useLocalStorage<WorklistItem[]>("prc_worklist_v2", MOCK_WORKLIST);
 
   // Sound (enabled by default)
   const [soundEnabled] = useLocalStorage<boolean>("prc_sound", true);
