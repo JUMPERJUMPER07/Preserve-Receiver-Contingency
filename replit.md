@@ -1,6 +1,6 @@
 # Preserve - Receiver Contingency
 
-A DICOM/RIS radiology workflow management app with a terminal/mission-control aesthetic for radiologists to receive DICOM studies, auto-match them to RIS worklist items, and confirm links.
+A DICOM/RIS radiology workflow management app for radiologists to receive DICOM studies, manually match them to RIS worklist items side-by-side, and confirm links.
 
 ## Run & Operate
 
@@ -19,10 +19,10 @@ A DICOM/RIS radiology workflow management app with a terminal/mission-control ae
 ## Where things live
 
 - `App.tsx` — main app logic, all state, WebSocket, OPS log, session timer
-- `components/OperatorDeckLayout.tsx` — **main layout**: terminal header, metrics ribbon, INCOMING | WORKSTATION | OPS LOG columns, footer bar
-- `components/MatchAlignedLayout.tsx` — legacy layout (kept, not used in main app)
-- `components/Header.tsx` — legacy header (kept, not used in main app)
-- `components/` — LinkConfirmationModal, SettingsModal, StudyDetails, Login, IntroSplash, Toast, ModalityBadge
+- `components/StagingZoneLayout.tsx` — **main layout**: header, PACS Recebidos | Zona de Vinculação | RIS Worklist columns, linked history strip; exports `OpsLogEntry`
+- `components/OperatorDeckLayout.tsx` — previous layout (kept for reference, not used)
+- `components/MatchAlignedLayout.tsx` — legacy layout (kept, not used)
+- `components/` — SettingsModal, StudyDetails, Login, IntroSplash, Toast, ModalityBadge, Logo
 - `hooks/` — useLocalStorage, useSound
 - `constants.ts` — mock DICOM study and worklist seed data
 - `types.ts` — DicomStudy, WorklistItem, ConnectionStatus, AppSettings, NetworkState
@@ -30,34 +30,34 @@ A DICOM/RIS radiology workflow management app with a terminal/mission-control ae
 
 ## Architecture decisions
 
-- **Operator Deck layout** replaces both the Header component and MatchAlignedLayout; it owns the header, metrics ribbon, three-column body, and status footer
-- **Auto-match** in the Workstation: when a study is selected from INCOMING, the best RIS worklist match (≥60% confidence) is shown automatically; operator reviews and confirms
-- **OPS LOG** is an in-memory append-only list (max 100 entries) of link events, network events, and RIS sync events — reset on logout
+- **StagingZoneLayout** is the main layout: 3-column PACS Recebidos | Zona de Vinculação | RIS Worklist; user manually selects one study from each side and confirms inline — no auto-match, no modal
+- **Inline confirmation**: clicking CONFIRMAR VÍNCULO in the center directly commits the link (no separate confirmation modal); discrepancy warning shown when data fields don't match
+- **OPS LOG** is in-memory (max 100 entries) — populated via `addOpsEntry` in App.tsx; not displayed as a visible panel in this layout
 - **Session timer** starts at login (`sessionStart` timestamp), displayed live in the header
 - All state persisted via localStorage (studies, worklist, settings); OPS log is session-only
 
 ## Product
 
-- INCOMING panel: live feed of received DICOM studies with status badges (NEW / ACTIVE / DONE)
-- WORKSTATION: auto-matched pair view with field-by-field verification (NAME, DOB, ID, MODALITY) and CONFIRMAR VÍNCULO button
-- OPS LOG: timestamped audit trail for the session (LINKED, UNMATCHED, SYSTEM EVENTS)
-- Metrics ribbon: RECEBIDOS, VINCULADOS, PENDENTES, SEM MATCH, STATUS, TAXA
-- Contingency mode: bottom bar shows "CONTINGÊNCIA ATIVA" when PACS/RIS offline
-- PACS/RIS network status LEDs with glow effects in header
-- Settings, study details, link confirmation modal as overlays
+- PACS Recebidos (left): live feed of received DICOM studies; selected study highlighted with cyan left-border
+- RIS Worklist (right): scheduled worklist items; selected item highlighted with indigo right-border
+- Zona de Vinculação (center): side-by-side PACS + RIS cards, field-by-field verification table (Nome/Nasc/ID/Modal), CONFIRMAR VÍNCULO button
+- Linked history strip: scrollable strip at bottom of center panel showing completed links
+- Contingency banner: shown when PACS/RIS offline
+- Network status LEDs with glow effects in header; session timer, settings, logout
 
 ## User preferences
 
-- Operator Deck (V3) aesthetic: `bg-[#020817]`, monospace fonts, cyan for PACS/incoming, emerald for linked, amber for warnings, rose for errors
+- Staging Zone aesthetic: `bg-[#020617]`, Inter font, cyan for PACS, indigo for RIS, emerald for linked, amber for warnings
 
 ## Gotchas
 
 - `index.html` uses importmap for CDN-based React — Vite handles the actual bundling for dev/build
 - Tailwind loaded via CDN script tag in index.html (not PostCSS plugin)
 - TypeScript errors in `artifacts/mockup-sandbox/` are pre-existing canvas prototype issues — not main app
+- `worklist.status === "completed"` is how the app tracks linked items — `studyInstanceUID` is copied from the DICOM study onto the worklist item at confirm time
 
 ## Pointers
 
 - Vite config: `vite.config.ts`
 - Types: `types.ts`
-- Legacy layout (for reference): `components/MatchAlignedLayout.tsx`
+- Previous layout (for reference): `components/OperatorDeckLayout.tsx`

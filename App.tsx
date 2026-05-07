@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { StudyDetails } from "./components/StudyDetails";
-import { LinkConfirmationModal } from "./components/LinkConfirmationModal";
 import { SettingsModal } from "./components/SettingsModal";
 import { Login } from "./components/Login";
 import { IntroSplash } from "./components/IntroSplash";
@@ -9,7 +8,7 @@ import { ConnectionStatus, DicomStudy, WorklistItem, AppSettings, NetworkState }
 import { MOCK_RECEIVED, MOCK_WORKLIST } from "./constants";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import { useSound } from "./hooks/useSound";
-import { OperatorDeckLayout, OpsLogEntry } from "./components/OperatorDeckLayout";
+import { StagingZoneLayout, OpsLogEntry } from "./components/StagingZoneLayout";
 
 const generateId = () => {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -47,9 +46,7 @@ const App: React.FC = () => {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [selectedStudy, setSelectedStudy] = useState<DicomStudy | null>(null);
   const [selectedWorklist, setSelectedWorklist] = useState<WorklistItem | null>(null);
-  const [draggedStudy, setDraggedStudy] = useState<DicomStudy | null>(null);
   const [previewStudy, setPreviewStudy] = useState<DicomStudy | null>(null);
-  const [showLinkConfirmation, setShowLinkConfirmation] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [opsLog, setOpsLog] = useState<OpsLogEntry[]>([]);
 
@@ -241,27 +238,18 @@ const App: React.FC = () => {
     return () => clearInterval(interval);
   }, [isAuthenticated, appSettings.ris.enabled, appSettings.ris.pollingInterval, generateMockRisItem, networkStatus.ris]);
 
-  const handleDropStudy = useCallback((study: DicomStudy, worklistItem: WorklistItem) => {
-    setSelectedStudy(study);
-    setSelectedWorklist(worklistItem);
-    setShowLinkConfirmation(true);
-    setDraggedStudy(null);
-  }, []);
-
-  const handleConfirmLink = useCallback(() => {
-    if (!selectedStudy || !selectedWorklist) return;
-    setWorklist(prev => prev.map(item =>
-      item.id === selectedWorklist.id
-        ? { ...item, status: "completed", studyInstanceUID: selectedStudy.studyInstanceUID }
-        : item
+  const handleConfirmLink = useCallback((study: DicomStudy, item: WorklistItem) => {
+    setWorklist(prev => prev.map(w =>
+      w.id === item.id
+        ? { ...w, status: "completed" as const, studyInstanceUID: study.studyInstanceUID }
+        : w
     ));
-    if (appSettings.workflow.autoHideLinked) setStudies(prev => prev.filter(s => s.id !== selectedStudy.id));
-    addToast(`Vínculo confirmado: ${selectedStudy.patientName} → ${selectedWorklist.accessionNumber}`, "success");
-    addOpsEntry("link", `LINKED: ${selectedStudy.patientName} → ${selectedWorklist.accessionNumber}`);
-    setShowLinkConfirmation(false);
+    if (appSettings.workflow.autoHideLinked) setStudies(prev => prev.filter(s => s.id !== study.id));
+    addToast(`Vínculo confirmado: ${study.patientName} → ${item.accessionNumber}`, "success");
+    addOpsEntry("link", `LINKED: ${study.patientName} → ${item.accessionNumber}`);
     setSelectedStudy(null);
     setSelectedWorklist(null);
-  }, [selectedStudy, selectedWorklist, appSettings.workflow.autoHideLinked, addOpsEntry]);
+  }, [appSettings.workflow.autoHideLinked, addOpsEntry]);
 
   const handleSaveSettings = (newSettings: AppSettings) => {
     setAppSettings(newSettings);
@@ -301,51 +289,29 @@ const App: React.FC = () => {
   );
 
   return (
-    <div
-      className="h-screen overflow-hidden"
-      onDragOver={(e) => e.preventDefault()}
-      onDragEnd={() => setDraggedStudy(null)}
-    >
+    <div className="h-screen overflow-hidden">
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
-      <OperatorDeckLayout
+      <StagingZoneLayout
         studies={studies}
         worklist={worklist}
         selectedStudy={selectedStudy}
         selectedWorklist={selectedWorklist}
         onSelectStudy={(study) => {
           setSelectedStudy(study);
-          setSelectedWorklist(null);
+          if (!study) setSelectedWorklist(null);
         }}
         onSelectWorklist={setSelectedWorklist}
-        onSelectPair={(study, item) => {
-          setSelectedStudy(study);
-          setSelectedWorklist(item);
-          setShowLinkConfirmation(true);
-        }}
+        onConfirmLink={handleConfirmLink}
         onDetails={setPreviewStudy}
-        draggedStudy={draggedStudy}
-        onDragStart={setDraggedStudy}
-        onDropStudy={handleDropStudy}
         connectionStatus={connectionStatus}
         networkStatus={networkStatus}
         userDrt={currentDrt || currentUser}
-        opsLog={opsLog}
         sessionStart={sessionStart}
         onOpenSettings={() => setShowSettings(true)}
         onLogout={handleLogout}
         onRefresh={handleRisRefresh}
-        pacsAeTitle={appSettings.pacs.aeTitle}
       />
-
-      {showLinkConfirmation && selectedStudy && selectedWorklist && (
-        <LinkConfirmationModal
-          study={selectedStudy}
-          worklistItem={selectedWorklist}
-          onConfirm={handleConfirmLink}
-          onCancel={() => setShowLinkConfirmation(false)}
-        />
-      )}
 
       <SettingsModal
         isOpen={showSettings}
