@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Settings, LogOut, RefreshCw, Clock, AlertTriangle, CheckCircle2, Eye } from "lucide-react";
+import { Settings, LogOut, RefreshCw, Clock, AlertTriangle, CheckCircle2, Eye, EyeOff, Shield, ShieldAlert } from "lucide-react";
 import { DicomStudy, WorklistItem, ConnectionStatus, NetworkState } from "../types";
 import { Logo } from "./Logo";
 import { ModalityBadge } from "./ModalityBadge";
@@ -27,6 +27,8 @@ interface StagingZoneLayoutProps {
   onOpenSettings: () => void;
   onLogout: () => void;
   onRefresh: () => void;
+  privacyMode: boolean;
+  onTogglePrivacy: () => void;
 }
 
 function formatSessionTime(seconds: number): string {
@@ -40,15 +42,59 @@ function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-function MatchRow({ label, a, b, match }: { label: string; a: string; b: string; match: boolean }) {
+// LGPD Masking Helpers
+export function maskPII(name: string, active: boolean): string {
+  if (!active) return name;
+  if (!name) return "";
+  const parts = name.split(" ");
+  return parts.map((p) => {
+    if (p.toLowerCase() === "da" || p.toLowerCase() === "de" || p.toLowerCase() === "do" || p.toLowerCase() === "dos" || p.toLowerCase() === "e") return p;
+    if (p.length > 0) {
+      return p[0] + "*".repeat(Math.max(1, p.length - 1));
+    }
+    return p;
+  }).join(" ");
+}
+
+export function maskBirthDate(date: string, active: boolean): string {
+  if (!active) return date;
+  if (!date) return "";
+  return date.replace(/^\d{2}\/\d{2}/, "**/**");
+}
+
+export function maskPatientId(id: string, active: boolean): string {
+  if (!active) return id;
+  if (!id) return "";
+  const parts = id.split("-");
+  if (parts.length > 1) {
+    return parts[0] + "-" + "*".repeat(parts[1].length);
+  }
+  return "*".repeat(id.length);
+}
+
+function MatchRow({ label, a, b, match, privacyMode }: { label: string; a: string; b: string; match: boolean; privacyMode: boolean }) {
+  let valA = a;
+  let valB = b;
+  if (privacyMode) {
+    if (label === "Paciente") {
+      valA = maskPII(a, true);
+      valB = maskPII(b, true);
+    } else if (label === "Nasc.") {
+      valA = maskBirthDate(a, true);
+      valB = maskBirthDate(b, true);
+    } else if (label === "ID") {
+      valA = maskPatientId(a, true);
+      valB = maskPatientId(b, true);
+    }
+  }
   return (
     <div className="flex items-center gap-2 text-[11px]">
       <span className="text-slate-500 w-16 shrink-0">{label}</span>
-      <span className="text-slate-200 flex-1 truncate">{a}</span>
+      <span className="text-slate-200 flex-1 truncate">{valA}</span>
       <span className={`text-base font-bold w-6 text-center ${match ? "text-emerald-400" : "text-red-400"}`}>
         {match ? "✓" : "✗"}
       </span>
-      <span className="text-slate-200 flex-1 truncate">{b}</span>
+      <span className="text-slate-200 flex-1 truncate">{valB}</span>
     </div>
   );
 }
@@ -82,6 +128,8 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
   onOpenSettings,
   onLogout,
   onRefresh,
+  privacyMode,
+  onTogglePrivacy,
 }) => {
   const [sessionSeconds, setSessionSeconds] = useState(0);
 
@@ -162,6 +210,17 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
 
           <div className="flex items-center gap-1">
             <button
+              onClick={onTogglePrivacy}
+              title={privacyMode ? "Desativar Modo de Privacidade (LGPD)" : "Ativar Modo de Privacidade (LGPD)"}
+              className={`p-1.5 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                privacyMode
+                  ? "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20"
+                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-800 border border-transparent"
+              }`}
+            >
+              {privacyMode ? <Shield size={14} /> : <ShieldAlert size={14} />}
+            </button>
+            <button
               onClick={onRefresh}
               title="Sincronizar RIS"
               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
@@ -239,7 +298,9 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
                       <span className="text-[10px] font-mono text-slate-500">{study.receivedAt}</span>
                     </div>
                   </div>
-                  <div className="text-[11px] font-semibold text-slate-200 truncate">{study.patientName}</div>
+                  <div className="text-[11px] font-semibold text-slate-200 truncate">
+                    {maskPII(study.patientName, privacyMode)}
+                  </div>
                   <div className="text-[10px] text-slate-500 truncate">{study.description}</div>
                   <div className="text-[10px] font-mono text-slate-600 truncate">{study.accessionNumber}</div>
                   {linked && (
@@ -286,11 +347,13 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
                           <ModalityBadge modality={pacs.modality} />
                           <span className="text-[10px] font-mono text-slate-500">{pacs.receivedAt}</span>
                         </div>
-                        <div className="text-sm font-semibold text-white truncate">{pacs.patientName}</div>
+                        <div className="text-sm font-semibold text-white truncate">
+                          {maskPII(pacs.patientName, privacyMode)}
+                        </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">{pacs.description}</div>
                         <div className="mt-2 space-y-0.5">
-                          <div className="text-[10px] text-slate-500">DOB: <span className="text-slate-300">{pacs.birthDate}</span></div>
-                          <div className="text-[10px] text-slate-500">ID: <span className="text-slate-300 font-mono">{pacs.patientId}</span></div>
+                          <div className="text-[10px] text-slate-500">DOB: <span className="text-slate-300">{maskBirthDate(pacs.birthDate, privacyMode)}</span></div>
+                          <div className="text-[10px] text-slate-500">ID: <span className="text-slate-300 font-mono">{maskPatientId(pacs.patientId, privacyMode)}</span></div>
                           <div className="text-[10px] text-slate-500">ACC: <span className="text-slate-300 font-mono">{pacs.accessionNumber}</span></div>
                         </div>
                       </>
@@ -308,11 +371,13 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
                           <ModalityBadge modality={ris.modality} />
                           <span className="text-[10px] font-mono text-slate-500">{ris.scheduledTime?.slice(11, 16) ?? ""}</span>
                         </div>
-                        <div className="text-sm font-semibold text-white truncate">{ris.patientName}</div>
+                        <div className="text-sm font-semibold text-white truncate">
+                          {maskPII(ris.patientName, privacyMode)}
+                        </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">{ris.procedure}</div>
                         <div className="mt-2 space-y-0.5">
-                          <div className="text-[10px] text-slate-500">DOB: <span className="text-slate-300">{ris.birthDate}</span></div>
-                          <div className="text-[10px] text-slate-500">ID: <span className="text-slate-300 font-mono">{ris.patientId}</span></div>
+                          <div className="text-[10px] text-slate-500">DOB: <span className="text-slate-300">{maskBirthDate(ris.birthDate, privacyMode)}</span></div>
+                          <div className="text-[10px] text-slate-500">ID: <span className="text-slate-300 font-mono">{maskPatientId(ris.patientId, privacyMode)}</span></div>
                           <div className="text-[10px] text-slate-500">ACC: <span className="text-slate-300 font-mono">{ris.accessionNumber}</span></div>
                         </div>
                       </>
@@ -327,10 +392,10 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
                   <div className="rounded-xl border border-white/10 bg-slate-900/40 p-4">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Verificação de Dados</div>
                     <div className="space-y-2.5">
-                      <MatchRow label="Paciente" a={pacs.patientName}    b={ris.patientName}    match={nameMatch} />
-                      <MatchRow label="Nasc."    a={pacs.birthDate}      b={ris.birthDate}      match={dobMatch}  />
-                      <MatchRow label="ID"       a={pacs.patientId}      b={ris.patientId}      match={pidMatch}  />
-                      <MatchRow label="Modal."   a={pacs.modality}       b={ris.modality}       match={modMatch}  />
+                      <MatchRow label="Paciente" a={pacs.patientName}    b={ris.patientName}    match={nameMatch} privacyMode={privacyMode} />
+                      <MatchRow label="Nasc."    a={pacs.birthDate}      b={ris.birthDate}      match={dobMatch}  privacyMode={privacyMode} />
+                      <MatchRow label="ID"       a={pacs.patientId}      b={ris.patientId}      match={pidMatch}  privacyMode={privacyMode} />
+                      <MatchRow label="Modal."   a={pacs.modality}       b={ris.modality}       match={modMatch}  privacyMode={privacyMode} />
                     </div>
                   </div>
                 )}
@@ -377,7 +442,7 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
                   <div key={item.id} className="shrink-0 flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1">
                     <div className="w-1 h-1 rounded-full bg-emerald-400" />
                     <span className="text-[10px] font-mono text-emerald-300 whitespace-nowrap">
-                      {item.accessionNumber} · {item.patientName}
+                      {item.accessionNumber} · {maskPII(item.patientName, privacyMode)}
                     </span>
                   </div>
                 ))
@@ -418,7 +483,9 @@ export const StagingZoneLayout: React.FC<StagingZoneLayoutProps> = ({
                       {item.scheduledTime?.slice(11, 16) ?? ""}
                     </span>
                   </div>
-                  <div className="text-[11px] font-semibold text-slate-200 truncate">{item.patientName}</div>
+                  <div className="text-[11px] font-semibold text-slate-200 truncate">
+                    {maskPII(item.patientName, privacyMode)}
+                  </div>
                   <div className="text-[10px] text-slate-500 truncate">{item.procedure}</div>
                   <div className="text-[10px] font-mono text-slate-600 truncate">{item.accessionNumber}</div>
                   {linked && (

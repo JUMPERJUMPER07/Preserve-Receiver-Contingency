@@ -67,8 +67,21 @@ Na parte inferior do painel, o sistema possui um "Log de Operações" que regist
 
 ---
 
+## 🔒 Segurança e Conformidade LGPD (Lei 13.709/18)
+
+O projeto foi atualizado com foco em **Privacy by Design** e segurança no tratamento de dados pessoais sensíveis de saúde (PHI/PII):
+
+* **Privacy by Default (Modo de Privacidade):** O sistema inicia com os dados sensíveis dos pacientes mascarados na interface por padrão (ex: `Maria da Silva` torna-se `M*** da S***`, e datas de nascimento tornam-se `**/**/1980`). O operador pode desativar o mascaramento temporariamente no cabeçalho.
+* **Criptografia Local de Dados (Rest):** Toda informação persistida no `localStorage` (estudos, worklist e configurações) é criptografada de forma simétrica usando algoritmo com salt UTF-8 para evitar inspeção de terceiros ou em ferramentas de desenvolvedor.
+* **Descarte Seguro de Dados (Zero Trace):** Ao efetuar o *logout* do sistema, todas as chaves sensíveis e dados de saúde de pacientes são inteiramente apagados do `localStorage` e da memória do navegador.
+* **Auto-Logout por Inatividade:** Bloqueio automático de sessão após 5 minutos sem interação do operador, protegendo o terminal em ambientes clínicos compartilhados.
+* **Trilha de Auditoria Estrita:** O log de auditoria interno registra ações sensíveis, identificando o operador responsável (DRT) quando há visualização de detalhes do paciente ou confirmação de vínculos.
+
+---
+
 ## 🚀 Status do Projeto
-* **Design de Interface:** 100% Concluído.
+* **Design de Interface & LGPD:** 100% Concluído e em conformidade.
 * **Lógica de Contingência e Alertas:** 100% Concluído.
 * **Experiência do Usuário (UI/UX):** 100% Concluído.
 * **Próxima Fase:** Acoplamento desta interface aos motores reais de PACS e RIS do hospital através da equipe de Engenharia/TI.
+

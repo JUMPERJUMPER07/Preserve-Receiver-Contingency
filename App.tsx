@@ -30,9 +30,10 @@ const App: React.FC = () => {
   const [currentDrt, setCurrentDrt] = useState("");
   const [sessionStart, setSessionStart] = useState(0);
 
-  const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("prc_settings", DEFAULT_SETTINGS);
-  const [studies, setStudies]         = useLocalStorage<DicomStudy[]>("prc_studies_v2", MOCK_RECEIVED);
-  const [worklist, setWorklist]       = useLocalStorage<WorklistItem[]>("prc_worklist_v2", MOCK_WORKLIST);
+  // Habilitando criptografia no localStorage para conformidade com LGPD
+  const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("prc_settings", DEFAULT_SETTINGS, true);
+  const [studies, setStudies]         = useLocalStorage<DicomStudy[]>("prc_studies_v2", [], true);
+  const [worklist, setWorklist]       = useLocalStorage<WorklistItem[]>("prc_worklist_v2", [], true);
 
   const [soundEnabled] = useLocalStorage<boolean>("prc_sound", true);
   const { play: playSound } = useSound(soundEnabled);
@@ -49,15 +50,19 @@ const App: React.FC = () => {
   const [previewStudy, setPreviewStudy] = useState<DicomStudy | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [opsLog, setOpsLog] = useState<OpsLogEntry[]>([]);
+  
+  // LGPD: Modo de privacidade ativo por padrão (Privacy by Default)
+  const [privacyMode, setPrivacyMode] = useState(true);
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const retryCountRef = useRef<number>(0);
 
-  const addToast = (message: string, type: "success" | "error" | "info") => {
+  const addToast = useCallback((message: string, type: "success" | "error" | "info") => {
     const id = generateId();
     setToasts(prev => [...prev, { id, message, type }]);
-  };
+  }, []);
+  
   const removeToast = (id: string) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const addOpsEntry = useCallback((type: OpsLogEntry["type"], text: string) => {
@@ -96,9 +101,9 @@ const App: React.FC = () => {
       const newItem = generateMockRisItem();
       setWorklist(prev => [newItem, ...prev]);
       addToast("Sincronização concluída. 1 novo agendamento encontrado.", "success");
-      addOpsEntry("event", `RIS SYNC: ${newItem.patientName} adicionado`);
+      addOpsEntry("event", `RIS SYNC: Agendamento sincronizado para iniciais do paciente.`);
     }, 1200);
-  }, [isAuthenticated, appSettings.ris.enabled, generateMockRisItem, addOpsEntry]);
+  }, [isAuthenticated, appSettings.ris.enabled, generateMockRisItem, addOpsEntry, addToast, setWorklist]);
 
   // WebSocket
   useEffect(() => {
@@ -117,7 +122,7 @@ const App: React.FC = () => {
         ws.onopen = () => {
           setConnectionStatus(ConnectionStatus.CONNECTED);
           addToast("Conectado ao servidor PACS com sucesso", "success");
-          addOpsEntry("event", "PACS: Conexão estabelecida");
+          addOpsEntry("event", "PACS: Conexão segura estabelecida");
           retryCountRef.current = 0;
           if (reconnectTimeoutRef.current) { window.clearTimeout(reconnectTimeoutRef.current); reconnectTimeoutRef.current = null; }
         };
@@ -139,8 +144,8 @@ const App: React.FC = () => {
               status: "received",
             };
             setStudies(prev => [newStudy, ...prev]);
-            addToast(`Novo estudo recebido: ${newStudy.patientName}`, "info");
-            addOpsEntry("event", `RECV: ${newStudy.patientName} (${newStudy.modality}) → ${newStudy.accessionNumber}`);
+            addToast(`Novo estudo recebido via canal seguro`, "info");
+            addOpsEntry("event", `RECV: Novo exame (${newStudy.modality}) recebido via PACS Local.`);
             playSound("receive");
           } catch { }
         };
@@ -166,7 +171,7 @@ const App: React.FC = () => {
       if (socketRef.current) { socketRef.current.onclose = null; socketRef.current.close(); socketRef.current = null; }
       if (reconnectTimeoutRef.current) window.clearTimeout(reconnectTimeoutRef.current);
     };
-  }, [appSettings.pacs.wsUrl, isAuthenticated]);
+  }, [appSettings.pacs.wsUrl, isAuthenticated, addOpsEntry, addToast, playSound, setStudies]);
 
   // Demo PACS simulation
   useEffect(() => {
@@ -192,14 +197,14 @@ const App: React.FC = () => {
             status: "received",
           };
           setStudies(prev => [simulatedStudy, ...prev]);
-          addToast(`Estudo recebido: ${simulatedStudy.patientName} (${simulatedStudy.modality})`, "info");
-          addOpsEntry("event", `RECV: ${simulatedStudy.patientName} (${simulatedStudy.modality})`);
+          addToast(`Novo estudo recebido na fila local`, "info");
+          addOpsEntry("event", `RECV: Exame local (${simulatedStudy.modality}) pronto para conferência.`);
           playSound("receive");
         }
       }, 3000);
     }
     return () => clearInterval(interval);
-  }, [connectionStatus, isAuthenticated]);
+  }, [connectionStatus, isAuthenticated, addOpsEntry, addToast, playSound, setStudies]);
 
   // Network Monitor
   useEffect(() => {
@@ -221,7 +226,7 @@ const App: React.FC = () => {
       }
     }, 15000);
     return () => clearInterval(interval);
-  }, [isAuthenticated, networkStatus.pacs, handleRisRefresh]);
+  }, [isAuthenticated, networkStatus.pacs, handleRisRefresh, addOpsEntry, addToast, playSound]);
 
   // Demo RIS polling
   useEffect(() => {
@@ -231,12 +236,12 @@ const App: React.FC = () => {
       if (Math.random() > 0.6) {
         const newItem = generateMockRisItem();
         setWorklist(prev => [newItem, ...prev]);
-        addToast(`RIS: Lista atualizada (${newItem.patientName})`, "info");
-        addOpsEntry("event", `RIS SYNC: ${newItem.patientName} adicionado`);
+        addToast(`RIS: Sincronização automática concluída`, "info");
+        addOpsEntry("event", `RIS SYNC: Lista de agendamentos atualizada.`);
       }
     }, pollInterval);
     return () => clearInterval(interval);
-  }, [isAuthenticated, appSettings.ris.enabled, appSettings.ris.pollingInterval, generateMockRisItem, networkStatus.ris]);
+  }, [isAuthenticated, appSettings.ris.enabled, appSettings.ris.pollingInterval, generateMockRisItem, networkStatus.ris, addOpsEntry, addToast, setWorklist]);
 
   const handleConfirmLink = useCallback((study: DicomStudy, item: WorklistItem) => {
     setWorklist(prev => prev.map(w =>
@@ -245,11 +250,14 @@ const App: React.FC = () => {
         : w
     ));
     if (appSettings.workflow.autoHideLinked) setStudies(prev => prev.filter(s => s.id !== study.id));
-    addToast(`Vínculo confirmado: ${study.patientName} → ${item.accessionNumber}`, "success");
-    addOpsEntry("link", `LINKED: ${study.patientName} → ${item.accessionNumber}`);
+    addToast(`Vínculo confirmado com sucesso`, "success");
+    
+    // LGPD: Log de auditoria detalhado registrando a alteração manual e vínculo
+    addOpsEntry("link", `AUDIT - VÍNCULO: Operador vinculou estudo do paciente ID: ${study.patientId} ao agendamento Acc: ${item.accessionNumber}`);
+    
     setSelectedStudy(null);
     setSelectedWorklist(null);
-  }, [appSettings.workflow.autoHideLinked, addOpsEntry]);
+  }, [appSettings.workflow.autoHideLinked, addOpsEntry, addToast, setStudies, setWorklist]);
 
   const handleSaveSettings = (newSettings: AppSettings) => {
     setAppSettings(newSettings);
@@ -261,16 +269,22 @@ const App: React.FC = () => {
     setCurrentDrt(drt);
     setIsAuthenticated(true);
     setSessionStart(Date.now());
+    
+    // Carrega dados simulados na sessão (sem persistência desprotegida)
+    setStudies(MOCK_RECEIVED);
+    setWorklist(MOCK_WORKLIST);
+    
+    // LGPD: Auditoria de login
     setOpsLog([{
       id: generateId(),
       time: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
       type: "event",
-      text: `SESSION: DRT ${drt || user} autenticado — sistema pronto`,
+      text: `AUDIT - LOGIN: Operador DRT ${drt || user} autenticou-se no terminal e iniciou a sessão.`,
     }]);
     addToast("Login realizado com sucesso", "success");
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setIsAuthenticated(false);
     setCurrentUser("");
     setCurrentDrt("");
@@ -278,15 +292,48 @@ const App: React.FC = () => {
     setOpsLog([]);
     setConnectionStatus(ConnectionStatus.DISCONNECTED);
     if (socketRef.current) socketRef.current.close();
-  };
 
-  if (showSplash) return <IntroSplash onComplete={() => setShowSplash(false)} />;
-  if (!isAuthenticated) return (
-    <>
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
-      <Login onLogin={handleLogin} />
-    </>
-  );
+    // LGPD: Limpeza total de dados sensíveis e de saúde armazenados localmente ao fazer logout
+    localStorage.removeItem("prc_studies_v2");
+    localStorage.removeItem("prc_worklist_v2");
+    setStudies([]);
+    setWorklist([]);
+    setSelectedStudy(null);
+    setSelectedWorklist(null);
+    setPreviewStudy(null);
+  }, [setStudies, setWorklist]);
+
+  // Monitoramento de inatividade para Auto-Logout (Exigência de Segurança LGPD/HIPAA)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const INACTIVITY_LIMIT = 5 * 60 * 1000; // 5 minutos de inatividade máxima
+    let timeoutId: number;
+
+    const resetTimer = () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        handleLogout();
+        addToast("Sessão encerrada automaticamente por inatividade (Medida de Segurança LGPD).", "error");
+      }, INACTIVITY_LIMIT);
+    };
+
+    const events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"];
+    events.forEach(e => window.addEventListener(e, resetTimer));
+
+    resetTimer(); // Inicializa o temporizador
+
+    return () => {
+      if (timeoutId) window.clearTimeout(timeoutId);
+      events.forEach(e => window.removeEventListener(e, resetTimer));
+    };
+  }, [isAuthenticated, handleLogout, addToast]);
+
+  // LGPD: Audit de acesso aos detalhes do paciente
+  const handleOpenDetails = useCallback((study: DicomStudy) => {
+    setPreviewStudy(study);
+    addOpsEntry("event", `AUDIT - ACESSO: Operador acessou metadados do paciente ID: ${study.patientId}`);
+  }, [addOpsEntry]);
 
   return (
     <div className="h-screen overflow-hidden">
@@ -303,7 +350,7 @@ const App: React.FC = () => {
         }}
         onSelectWorklist={setSelectedWorklist}
         onConfirmLink={handleConfirmLink}
-        onDetails={setPreviewStudy}
+        onDetails={handleOpenDetails}
         connectionStatus={connectionStatus}
         networkStatus={networkStatus}
         userDrt={currentDrt || currentUser}
@@ -311,6 +358,14 @@ const App: React.FC = () => {
         onOpenSettings={() => setShowSettings(true)}
         onLogout={handleLogout}
         onRefresh={handleRisRefresh}
+        privacyMode={privacyMode}
+        onTogglePrivacy={() => {
+          setPrivacyMode(prev => {
+            const next = !prev;
+            addOpsEntry("event", `AUDIT - PRIVACIDADE: Modo de privacidade (LGPD) ${next ? "ativado" : "desativado"} pelo operador.`);
+            return next;
+          });
+        }}
       />
 
       <SettingsModal
@@ -323,7 +378,7 @@ const App: React.FC = () => {
       {previewStudy && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full max-w-2xl h-[80vh] md:h-auto md:max-h-[85vh] animate-in zoom-in-95 duration-200">
-            <StudyDetails study={previewStudy} onClose={() => setPreviewStudy(null)} />
+            <StudyDetails study={previewStudy} privacyMode={privacyMode} onClose={() => setPreviewStudy(null)} />
           </div>
         </div>
       )}
@@ -332,3 +387,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

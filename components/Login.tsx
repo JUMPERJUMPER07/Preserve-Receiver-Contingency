@@ -244,7 +244,12 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
             </button>
           </form>
 
-          <div className="mt-8 pt-6 border-t border-slate-800/60 flex items-center justify-center gap-2 text-slate-500">
+          <p className="text-[10px] text-slate-500 text-center leading-relaxed mt-4 bg-slate-950/40 p-2.5 rounded-lg border border-slate-800/50">
+            Este sistema processa dados pessoais sensíveis em conformidade com a <strong>LGPD (Lei nº 13.709/18)</strong>. O acesso e uso das informações de saúde são restritos para fins profissionais e sujeitos a auditoria.
+          </p>
+
+          <div className="mt-6 pt-6 border-t border-slate-800/60 flex items-center justify-center gap-2 text-slate-500">
+
             <ShieldCheck size={12} className={mode === "login" ? "text-cyan-500" : "text-emerald-500"} />
             <span className="font-mono text-[9px] uppercase tracking-wider opacity-80">
               Secure Connection · 256-Bit Encryption

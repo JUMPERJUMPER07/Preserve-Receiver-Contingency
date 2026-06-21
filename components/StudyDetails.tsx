@@ -1,14 +1,15 @@
-
 import React, { useState } from 'react';
 import { DicomStudy } from '../types';
 import { X, FileText, Hash, Calendar, User, Building, Stethoscope, Clock, Database, Info, FileCode } from 'lucide-react';
+import { maskPII, maskBirthDate, maskPatientId } from './StagingZoneLayout';
 
 interface StudyDetailsProps {
   study: DicomStudy | null;
   onClose?: () => void;
+  privacyMode?: boolean;
 }
 
-export const StudyDetails: React.FC<StudyDetailsProps> = ({ study, onClose }) => {
+export const StudyDetails: React.FC<StudyDetailsProps> = ({ study, onClose, privacyMode = false }) => {
   const [activeTab, setActiveTab] = useState<'overview' | 'dicom'>('overview');
 
   if (!study) {
@@ -39,12 +40,12 @@ export const StudyDetails: React.FC<StudyDetailsProps> = ({ study, onClose }) =>
              </div>
              <div>
                <h2 className="text-xl font-bold text-white leading-tight">
-                 {study.patientName}
+                 {maskPII(study.patientName, privacyMode)}
                </h2>
                <div className="flex items-center gap-3 mt-1 text-xs font-mono text-slate-400">
-                  <span className="flex items-center gap-1"><User size={10} /> {study.patientId}</span>
+                  <span className="flex items-center gap-1"><User size={10} /> {maskPatientId(study.patientId, privacyMode)}</span>
                   <span className="w-px h-3 bg-slate-700"></span>
-                  <span className="flex items-center gap-1"><Calendar size={10} /> {study.birthDate}</span>
+                  <span className="flex items-center gap-1"><Calendar size={10} /> {maskBirthDate(study.birthDate, privacyMode)}</span>
                </div>
              </div>
            </div>
@@ -131,9 +132,9 @@ export const StudyDetails: React.FC<StudyDetailsProps> = ({ study, onClose }) =>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/50 text-slate-300 font-mono">
-                    <TableRow tag="(0010,0010)" vr="PN" value={study.patientName} />
-                    <TableRow tag="(0010,0020)" vr="LO" value={study.patientId} />
-                    <TableRow tag="(0010,0030)" vr="DA" value={study.birthDate.replace(/\//g, '')} />
+                    <TableRow tag="(0010,0010)" vr="PN" value={maskPII(study.patientName, privacyMode)} />
+                    <TableRow tag="(0010,0020)" vr="LO" value={maskPatientId(study.patientId, privacyMode)} />
+                    <TableRow tag="(0010,0030)" vr="DA" value={maskBirthDate(study.birthDate, privacyMode).replace(/\//g, '')} />
                     <TableRow tag="(0008,0020)" vr="DA" value={study.studyDate.replace(/-/g, '')} />
                     <TableRow tag="(0008,0050)" vr="SH" value={study.accessionNumber} />
                     <TableRow tag="(0008,0060)" vr="CS" value={study.modality} />
@@ -186,3 +187,4 @@ const TableRow = ({ tag, vr, value, copyable }: { tag: string, vr: string, value
     </td>
   </tr>
 );
+
